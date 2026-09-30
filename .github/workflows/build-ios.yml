@@ -1,0 +1,29 @@
+name: Build iOS IPA (bez podpisywania)
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generuj projekt Xcode
+        run: |
+          gem install xcodeproj
+          ruby scripts/generate_project.rb
+      - name: Build symulator
+        run: xcodebuild -project DiscordiOSApp.xcodeproj -scheme DiscordiOSApp -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build | tail -n 100
+      - name: Zbuduj IPA unsigned
+        run: |
+          xcodebuild -project DiscordiOSApp.xcodeproj -scheme DiscordiOSApp -sdk iphoneos -configuration Release CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "DiscordiOSApp.app" -type d | head -n 1)
+          echo "APP: $APP_PATH"
+          ls -la "$APP_PATH"
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -r DiscordiOSApp-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DiscordiOSApp-unsigned
+          path: DiscordiOSApp-unsigned.ipa
+
